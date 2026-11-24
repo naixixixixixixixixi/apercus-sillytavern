@@ -381,7 +381,7 @@ test('connect status throttles gateway polling to >=5s and reports connecting/pe
     assert.equal(first.json().status, 'connecting');
     assert.equal(h.gateway.calls.poll.length, 0);
 
-    h.tick(5000);
+    h.tick(5500);
     const second = await call(h.core.handlers.connectStatus, statusReq());
     assert.equal(second.json().status, 'pending');
     assert.equal(h.gateway.calls.poll.length, 1);
@@ -407,9 +407,9 @@ test('approved connect writes the envelope and reports authorized with username 
     });
     const h = buildCore({ gateway });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     assert.equal((await call(h.core.handlers.connectStatus, statusReq())).json().status, 'pending');
-    h.tick(5000);
+    h.tick(5500);
     const authorized = await call(h.core.handlers.connectStatus, statusReq());
     assert.equal(authorized.statusCode, 200);
     assert.deepEqual(authorized.json(), { status: 'authorized', username: 'alice' });
@@ -422,7 +422,7 @@ test('approved connect writes the envelope and reports authorized with username 
     });
 
     // 会话已清：后续 status 从密钥库记录回答，不再打网关。
-    h.tick(5000);
+    h.tick(5500);
     const after = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(after.json(), { status: 'authorized', username: 'alice' });
     assert.equal(h.gateway.calls.poll.length, 2);
@@ -441,7 +441,7 @@ test('approved with storage failure stays pending, retries the write without re-
     });
     const h = buildCore({ gateway, failWrites: 1 });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const pending = await call(h.core.handlers.connectStatus, statusReq());
     assert.equal(pending.json().status, 'pending');
     assert.equal(h.writeCalls.length, 1);
@@ -464,7 +464,7 @@ test('approved write exceptions are fail-closed and retryable', async () => {
     });
     const h = buildCore({ gateway, writeThrows: true });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const pending = await call(h.core.handlers.connectStatus, statusReq());
     assert.equal(pending.json().status, 'pending');
     assert.equal(h.store.records.has('/u/alice'), false);
@@ -474,7 +474,7 @@ test('invalid connect (404) clears the session and surfaces invalid on status', 
     const gateway = makeGateway({ poll: () => ({ status: 'invalid' }) });
     const h = buildCore({ gateway });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const invalid = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(invalid.json(), { status: 'invalid' });
 
@@ -512,14 +512,14 @@ test('poll network failure is 502 but keeps the session for the next 5s retry', 
     });
     const h = buildCore({ gateway });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const failed = await call(h.core.handlers.connectStatus, statusReq());
     assert.equal(failed.statusCode, 502);
     assert.equal(failed.json().error.code, 'upstream_unavailable');
     assertNoStore(failed);
 
     fail = false;
-    h.tick(5000);
+    h.tick(5500);
     const retried = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(retried.json(), { status: 'pending' });
     assert.equal(h.gateway.calls.poll.length, 2);
@@ -538,7 +538,7 @@ test('users have isolated connect sessions and bindings', async () => {
     }));
     assert.notEqual(aliceConnect.json().authorize_url, bobConnect.json().authorize_url);
 
-    h.tick(5000);
+    h.tick(5500);
     const aliceStatus = await call(h.core.handlers.connectStatus, statusReq());
     const bobStatus = await call(h.core.handlers.connectStatus, statusReq({
         user: { directories: { root: '/u/bob' } },
@@ -561,7 +561,7 @@ test('logout revokes remotely and always clears both local namespaces + session'
         username: 'alice',
     });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
 
     const result = await call(h.core.handlers.logout, logoutReq());
     assert.equal(result.statusCode, 200);
@@ -804,7 +804,7 @@ test('approved connect result is dropped when logout happens while polling (S3)'
     };
     const h = buildCore({ gateway: { client, calls: { start: [], poll: [], logout: [], meKey: [] } } });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const pendingStatus = call(h.core.handlers.connectStatus, statusReq());
     await Promise.resolve();
     await Promise.resolve();
@@ -1268,7 +1268,7 @@ test('connect and status responses never serialize secrets', async () => {
     const h = buildCore();
     const connect = await call(h.core.handlers.connect, connectReq());
     assertNoSecrets(connect.body);
-    h.tick(5000);
+    h.tick(5500);
     const pending = await call(h.core.handlers.connectStatus, statusReq());
     assertNoSecrets(pending.body);
     const status = await call(h.core.handlers.status, {
@@ -1291,7 +1291,7 @@ test('connect flow writes nothing to the console', async () => {
     try {
         const h = buildCore();
         await call(h.core.handlers.connect, connectReq());
-        h.tick(5000);
+        h.tick(5500);
         await call(h.core.handlers.connectStatus, statusReq());
         await call(h.core.handlers.status, {
             method: 'GET',
@@ -1319,7 +1319,7 @@ test('connect request invalidation only affects /connect/status, not an existing
         username: 'alice',
     });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const connectStatus = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(connectStatus.json(), { status: 'invalid' });
 
@@ -1359,7 +1359,7 @@ test('approved write failures stay pending with retry state 3 times, then invali
     });
     const h = buildCore({ gateway, failWrites: 100 });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {
         const pending = await call(h.core.handlers.connectStatus, statusReq());
@@ -1394,7 +1394,7 @@ test('approved write failures stay pending with retry state 3 times, then invali
         username: 'alice',
     });
     await call(h2.core.handlers.connect, connectReq());
-    h2.tick(5000);
+    h2.tick(5500);
     const authorized = await call(h2.core.handlers.connectStatus, statusReq());
     assert.deepEqual(authorized.json(), { status: 'authorized', username: 'alice' });
     assert.equal(h2.store.records.get('/u/alice').key, BINDING_KEY);
@@ -1441,7 +1441,7 @@ test('a plan refresh in flight cannot land after a newer approved write (F3)', a
 
     // 新 approved 写库：信封换成 B，epoch +1。
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const approved = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(approved.json(), { status: 'authorized', username: 'alice' });
     assert.equal(h.store.records.get('/u/alice').loginCredential, LOGIN_CREDENTIAL);
@@ -1582,9 +1582,9 @@ test('G4: only a successful new approval clears login_invalidated (queries resum
 
     // 新批准写入成功是唯一清标记路径。
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     assert.equal((await call(h.core.handlers.connectStatus, statusReq())).json().status, 'pending');
-    h.tick(5000);
+    h.tick(5500);
     const approved = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(approved.json(), { status: 'authorized', username: 'alice' });
 
@@ -1820,7 +1820,7 @@ test('H10: a cancelled reconnect cannot downgrade login_invalidated (G4 stays en
     // 重连发起后在轮询阶段取消（poll invalid）：只产生短时连接失效标记，
     // 不得把 login_invalidated 降级成可被 TTL 清掉/忽略的短标记。
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const connectStatus = await call(h.core.handlers.connectStatus, statusReq());
     assert.deepEqual(connectStatus.json(), { status: 'invalid' });
     const status = await call(h.core.handlers.status, plainStatusReq());
@@ -1845,7 +1845,7 @@ test('H11: logout during another tab\'s approved poll discards the approval (no 
     const gateway = makeGateway({ poll: () => new Promise((resolve) => { resolvePoll = resolve; }) });
     const h = buildCore({ gateway });
     await call(h.core.handlers.connect, connectReq());
-    h.tick(5000);
+    h.tick(5500);
     const pollPromise = call(h.core.handlers.connectStatus, statusReq());
     await flush();
     assert.equal(typeof resolvePoll, 'function', 'poll is in flight');

@@ -61,8 +61,9 @@ const APPROVED_WRITE_MAX_ATTEMPTS = 4;
 // 从 APERCUS_ALLOWED_HOSTS 逗号分隔注入）；插件这一层是默认 deny-by-host 的兜底，
 // ST 的 hostWhitelist 仍建议同时开启。
 const DEFAULT_ALLOWED_HOSTS = Object.freeze(['localhost', '127.0.0.1', '::1']);
-// 契约固定轮询节奏 ≥5 秒（非协商，不进响应体）；连接请求 TTL 15 分钟。
-const CONNECT_POLL_INTERVAL_MS = 5000;
+// 契约固定轮询节奏 ≥5 秒（非协商，不进响应体）；实际取 5.5 秒——恰踩网关 5 秒
+// 硬闸下限会在网络抖动下偶发 429（连接期显示「暂不可用」后自恢复）。连接请求 TTL 15 分钟。
+const CONNECT_POLL_INTERVAL_MS = 5500;
 const CONNECT_TTL_MS = 15 * 60 * 1000;
 
 const MESSAGE_STATUS = '网关 Pass 账户绑定尚未开放：网关授权与交付契约未完成，登录暂不可用。';
@@ -868,12 +869,11 @@ function createCore(deps) {
         if (typeof gatewayClient.startConnect !== 'function'
             || typeof gatewayClient.pollConnect !== 'function'
             || typeof gatewayClient.logout !== 'function'
-            || typeof gatewayClient.fetchMe !== 'function'
             || typeof gatewayClient.fetchKeys !== 'function'
             || typeof gatewayClient.fetchMeKey !== 'function'
             || typeof gatewayClient.fetchModels !== 'function'
             || typeof gatewayClient.fetchBalance !== 'function') {
-            throw new TypeError('gatewayClient must provide startConnect, pollConnect, logout, fetchMe, fetchKeys, fetchMeKey, fetchModels and fetchBalance');
+            throw new TypeError('gatewayClient must provide startConnect, pollConnect, logout, fetchKeys, fetchMeKey, fetchModels and fetchBalance');
         }
     } else {
         gatewayClient = createGatewayClient({ fetchImpl, timeoutMs: connectTimeoutMs });
